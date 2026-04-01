@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Movie Analytics Pro</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.0.0"></script>
     <style>
         :root {
             --bg-color: #050505;
@@ -31,38 +31,33 @@
         }
         button:hover, button.active { background: var(--accent-blue); color: #000; box-shadow: 0 0 15px rgba(0, 212, 255, 0.3); }
 
-        /* --- STABLE HEADER & FILTER AREA --- */
         .master-container { width: 95%; max-width: 1200px; background: var(--card-bg); border-radius: 8px; border: 1px solid var(--border-color); overflow: hidden; }
         
+        /* Fixed Header & Filters */
         .fixed-header-table { width: 100%; border-collapse: collapse; table-layout: fixed; }
         .fixed-header-table th { background: #161616; color: var(--accent-blue); padding: 12px; text-align: left; font-size: 0.75rem; border-bottom: 1px solid var(--border-color); cursor: pointer; }
         .filter-row td { background: #0f0f0f; padding: 10px; border-bottom: 2px solid var(--accent-blue); }
-        .filter-input, .filter-select { width: 100%; background: var(--input-bg); border: 1px solid var(--border-color); color: white; padding: 6px; border-radius: 3px; font-family: inherit; font-size: 0.8rem; }
+        .filter-input, .filter-select { width: 100%; background: var(--input-bg); border: 1px solid var(--border-color); color: white; padding: 6px; border-radius: 3px; font-family: inherit; font-size: 0.8rem; outline: none; }
 
-        /* Range Slider Styling */
         .range-slider { position: relative; width: 100%; height: 25px; margin-top: 5px; }
         .range-slider input[type="range"] { position: absolute; width: 100%; appearance: none; background: none; pointer-events: none; z-index: 2; }
         .range-slider::before { content: ''; position: absolute; width: 100%; height: 4px; background: #333; top: 10px; border-radius: 2px; }
         input[type="range"]::-webkit-slider-thumb { height: 16px; width: 16px; border-radius: 50%; background: var(--accent-blue); cursor: pointer; appearance: none; pointer-events: auto; }
         .range-values { font-size: 0.7rem; color: var(--accent-blue); display: flex; justify-content: space-between; font-family: monospace; }
 
-        /* --- TOGGLEABLE CONTENT SECTIONS --- */
-        .view-content { padding: 20px; display: none; opacity: 0; transition: opacity 0.3s ease; }
+        /* Content Sections */
+        .view-content { padding: 20px; display: none; opacity: 0; }
         .view-content.active { display: block; opacity: 1; }
 
-        /* Table Body View */
         #table-body-view { padding: 0; }
         .data-table { width: 100%; border-collapse: collapse; table-layout: fixed; }
         .data-table td { padding: 14px 12px; border-bottom: 1px solid #1a1a1a; font-size: 0.9rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: var(--text-color); }
-        .data-table tr:hover td { background: rgba(0, 212, 255, 0.03); }
 
-        /* Analytics View Layout */
         #analytics-view.active { display: grid; grid-template-columns: 1fr 280px; gap: 20px; }
         .charts-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
         .full-width { grid-column: span 2; }
         .chart-box { background: #0a0a0a; padding: 15px; border-radius: 6px; border: 1px solid #222; }
 
-        /* Sidebar Metrics */
         .metrics-sidebar { background: #161616; padding: 20px; border-radius: 6px; border-left: 2px solid var(--accent-blue); }
         .metric-item { margin-bottom: 15px; border-bottom: 1px solid #222; padding-bottom: 8px; }
         .metric-label { font-size: 0.65rem; color: #888; text-transform: uppercase; margin-bottom: 4px; }
@@ -105,9 +100,7 @@
         </table>
 
         <div id="table-body-view" class="view-content active">
-            <table class="data-table">
-                <tbody id="tableBody"></tbody>
-            </table>
+            <table class="data-table"><tbody id="tableBody"></tbody></table>
         </div>
 
         <div id="analytics-view" class="view-content">
@@ -115,10 +108,13 @@
                 <div class="chart-box"><canvas id="barChart"></canvas></div>
                 <div class="chart-box">
                     <div style="display:flex; justify-content:space-between; margin-bottom:10px">
-                        <span style="font-size:0.7rem; color:#888">Country Mix</span>
-                        <select id="country-metric" style="background:#000; color:var(--accent-blue); border:1px solid #333; font-size:0.7rem;" onchange="updateCharts()">
-                            <option value="count">Count</option>
-                            <option value="avg">Average</option>
+                        <span style="font-size:0.7rem; color:#888">Country Distribution</span>
+                        <select id="country-metric" style="background:#000; color:var(--accent-blue); border:1px solid #333; font-size:0.7rem; font-family: inherit;" onchange="updateCharts()">
+                            <option value="count">Film Count</option>
+                            <option value="avg">Average Revenue</option>
+                            <option value="median">Median Revenue</option>
+                            <option value="min">Min Revenue</option>
+                            <option value="max">Max Revenue</option>
                         </select>
                     </div>
                     <canvas id="pieChart"></canvas>
@@ -136,6 +132,9 @@
     </div>
 
     <script>
+        // Register the DataLabels plugin for all charts
+        Chart.register(ChartDataLabels);
+
         let movieData = [], filteredData = [], charts = { bar: null, pie: null, line: null };
         let absMin = 0, absMax = 0, currentSort = { col: '', dir: 1 };
 
@@ -149,7 +148,9 @@
                 }));
                 const b = movieData.map(m => m.box_office);
                 absMin = Math.min(...b) - 10; absMax = Math.max(...b) + 10;
-                setupUI(); filterData(); initCharts(); updateCharts();
+                setupUI();
+                initCharts();
+                filterData(); // This handles the first table render and chart update
             } catch (e) { console.error(e); }
         }
 
@@ -167,15 +168,10 @@
         function switchView(id) {
             document.querySelectorAll('.nav-container button').forEach(b => b.classList.remove('active'));
             document.querySelectorAll('.view-content').forEach(v => v.classList.remove('active'));
-            
-            const activeSection = document.getElementById(id);
+            document.getElementById(id).classList.add('active');
             document.getElementById('btn-' + id).classList.add('active');
-            activeSection.classList.add('active');
-            
             if (id === 'analytics-view') {
-                setTimeout(() => {
-                    Object.values(charts).forEach(c => { if(c) { c.resize(); c.update(); } });
-                }, 10);
+                setTimeout(() => Object.values(charts).forEach(c => { if(c) { c.resize(); c.update(); } }), 10);
             }
         }
 
@@ -192,7 +188,7 @@
                 (m.box_office >= mi && m.box_office <= ma)
             );
 
-            renderTable(); calculateMetrics(); if (charts.bar) updateCharts();
+            renderTable(); calculateMetrics(); updateCharts();
         }
 
         function calculateMetrics() {
@@ -234,13 +230,57 @@
         }
 
         function initCharts() {
-            const opt = (t) => ({ plugins: { legend: { display: false }, title: { display: true, text: t, color: '#888' } }, scales: { y: { grid: { color: '#222' }, ticks: { color: '#666' } }, x: { ticks: { color: '#666' }, grid: { display: false } } } });
+            const commonPlugins = {
+                datalabels: {
+                    color: '#fff',
+                    font: { weight: 'bold', size: 10 },
+                    formatter: (value, context) => {
+                        // For Bar/Line charts, we hide datalabels usually, or show on Pie
+                        return context.chart.config.type === 'doughnut' ? (value > 0 ? value.toLocaleString() : '') : null;
+                    }
+                }
+            };
+
+            const opt = (t) => ({ 
+                responsive: true,
+                plugins: { 
+                    ...commonPlugins,
+                    datalabels: { display: false }, // Disable for Bar/Line by default
+                    legend: { display: false }, 
+                    title: { display: true, text: t, color: '#888' } 
+                }, 
+                scales: { y: { grid: { color: '#222' }, ticks: { color: '#666' } }, x: { ticks: { color: '#666' }, grid: { display: false } } } 
+            });
+
             charts.bar = new Chart(document.getElementById('barChart'), { type: 'bar', data: { labels: [], datasets: [{ backgroundColor: '#00d4ff88', borderColor: '#00d4ff', borderWidth: 1 }] }, options: opt('Top 15 Revenue') });
-            charts.pie = new Chart(document.getElementById('pieChart'), { type: 'doughnut', data: { labels: [], datasets: [{ backgroundColor: ['#00d4ff', '#0084ff', '#0044ff', '#00ccff'], borderColor: '#111' }] }, options: { plugins: { legend: { display: false } } } });
+            
+            charts.pie = new Chart(document.getElementById('pieChart'), { 
+                type: 'doughnut', 
+                data: { labels: [], datasets: [{ backgroundColor: ['#00d4ff', '#0084ff', '#0044ff', '#00ccff', '#0055ff', '#00ffcc'], borderColor: '#111' }] }, 
+                options: {
+                    plugins: {
+                        legend: { display: false },
+                        datalabels: {
+                            display: true,
+                            anchor: 'center',
+                            align: 'center',
+                            backgroundColor: 'rgba(0,0,0,0.6)',
+                            borderRadius: 3,
+                            padding: 4,
+                            formatter: (value, ctx) => {
+                                const metric = document.getElementById('country-metric').value;
+                                return metric === 'count' ? value : '$' + (value/1e6).toFixed(1) + 'M';
+                            }
+                        }
+                    }
+                }
+            });
+
             charts.line = new Chart(document.getElementById('lineChart'), { type: 'line', data: { labels: [], datasets: [{ label: 'Releases', borderColor: '#00d4ff', tension: 0.4, fill: true, backgroundColor: 'rgba(0, 212, 255, 0.1)' }] }, options: opt('Release Timeline') });
         }
 
         function updateCharts() {
+            if (!charts.bar) return;
             const top = [...filteredData].sort((a,b) => b.box_office - a.box_office).slice(0, 15);
             charts.bar.data.labels = top.map(m => m.title);
             charts.bar.data.datasets[0].data = top.map(m => m.box_office);
@@ -248,8 +288,16 @@
             const mType = document.getElementById('country-metric').value;
             const groups = filteredData.reduce((acc, m) => { (acc[m.country] = acc[m.country] || []).push(m.box_office); return acc; }, {});
             const labels = Object.keys(groups);
+            
             charts.pie.data.labels = labels;
-            charts.pie.data.datasets[0].data = labels.map(c => mType === 'count' ? groups[c].length : groups[c].reduce((a,b)=>a+b,0)/groups[c].length);
+            charts.pie.data.datasets[0].data = labels.map(c => {
+                const v = groups[c].sort((a,b) => a-b);
+                if (mType === 'count') return v.length;
+                if (mType === 'avg') return v.reduce((a,b)=>a+b,0)/v.length;
+                if (mType === 'min') return v[0];
+                if (mType === 'max') return v[v.length-1];
+                if (mType === 'median') return v[Math.floor(v.length/2)];
+            });
 
             const years = filteredData.reduce((acc, m) => { acc[m.release_year] = (acc[m.release_year] || 0) + 1; return acc; }, {});
             const sY = Object.keys(years).sort();
