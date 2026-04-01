@@ -140,7 +140,7 @@
 
         async function loadData() {
             try {
-                const res = await fetch('/films.json');
+                const res = await fetch('https://canerig.github.io/DWaV-highest-grossing-films/films.json');
                 const raw = await res.json();
                 movieData = (Array.isArray(raw) ? raw : (raw.movies || [])).map(m => ({
                     ...m,
